@@ -19,7 +19,7 @@ This repository’s second step focuses on a **code-based framework** to demonst
    **Brief Statement**: This is the core component where we implement the _textual manipulation and attack strategies_ to subtly alter item descriptions. By limiting the number of changed tokens, the attacker can stay below a detection threshold. We then show how these edits lead to significant shifts in recommended item rankings when the system is retrained or re-indexed.
 
 3. **Embedding Extraction**  
-   *(Placeholder: code for generating or loading embeddings, typically used in RAG-based retrieval components.)*
+   **Brief Statement**: This code handles **embedding generation** for item descriptions, supporting multiple embedding methods (OpenAI, Sentence Transformers, or LLaMA). It can download or load the previously augmented dataset, create embedding vectors for each item’s (rewritten) text, and then output them in compressed chunks.
 
 ---
 
@@ -34,7 +34,6 @@ This repository’s second step focuses on a **code-based framework** to demonst
 ---
 
 ### Code 2
-
 Below is a more in-depth explanation of the **Data Augmentation Attack** module (item 2). This module orchestrates rewriting item descriptions, evaluating their semantic changes, and measuring the impact on final recommendations.
 
 **Paragraph 1**: In this module, we focus on **textual rewriting techniques** designed to evade naive detection systems while significantly affecting retrieval and ranking. The core idea is to limit token-level edits—e.g., changing only 10% to 30% of words—so that the manipulated descriptions still appear coherent. We incorporate various rewriting strategies, such as:
@@ -53,21 +52,35 @@ By comparing these metrics before and after modification, we quantify how “sim
 **(Optional)** A fourth paragraph can discuss **defensive techniques** such as verifying text provenance, monitoring unusual changes in descriptions, or employing robust embedding methods that are less sensitive to minor textual additions. Such methods could be integrated alongside standard data-preprocessing pipelines, but the code here primarily focuses on showing how easily these vulnerabilities can be exploited in typical RAG-based recommenders.
 
 ```plaintext
-[Here is where the actual attack code from the provided script would appear,
-including the rewrite functions, neighbor borrowing, emotional edits,
+[Here is where the actual attack code from the provided script would appear, 
+including the rewrite functions, neighbor borrowing, emotional edits, 
 and the logic for measuring semantic differences, etc.]
 ```
 
 ---
 
 ### Code 3
+**(Embedding Extraction)**
+
+**Paragraph 1**: This code enables **embedding extraction** for item metadata, including any newly augmented descriptions. It supports multiple embedding providers or models (OpenAI Embeddings, Sentence Transformers, and LLaMA). Each approach can be configured via a flag, allowing for a flexible workflow that aligns with the user’s chosen pipeline.
+
+**Paragraph 2**: First, it retrieves a post-attack dataset—i.e., items that have potentially been promoted or demoted—and loads it into a DataFrame. It then generates vector embeddings for the content. For OpenAI, it calls their Embeddings API (e.g. `text-embedding-ada-002`), while for local approaches it uses either Sentence Transformers or LLaMA for on-device embedding.
+
+**Paragraph 3**: We have additional utility functions for chunking, batching, and parallelizing the embedding calls to handle large item catalogs. The resulting embeddings are then saved in a compressed, chunked format to avoid memory or storage overhead, facilitating easy integration with retrieval-augmented recommendation modules.
+
+**Paragraph 4**: After embeddings are created, each row’s textual representation is effectively turned into a high-dimensional vector. Downstream tasks—like approximate nearest neighbor (ANN) search, re-ranking, or LLM-based inference—can utilize these embeddings. The code also illustrates how to handle special tokens, concurrency, and potential rate limits when calling external APIs.
+
 ```plaintext
-[Placeholder for any embedding extraction code...]
+[The full code snippet for embedding extraction is included below, covering 
+OpenAI, Sentence Transformers, and LLaMA-based embeddings, with chunk splitting 
+and compression for efficient storage.]
 ```
-*(No detailed description yet — to be updated as needed.)*
 
 ---
 
 ### Final Notes
-The above code (Code 2) exemplifies how a single-phase or chained textual manipulation can drastically influence retrieval-augmented recommendations. By limiting edits to a constrained token budget and using clever injection of emotional or neighbor-based text, adversaries can stay under the radar while shifting item exposure in top-$N$ lists. The methodology highlights the pressing need for **robust textual integrity checks** and **defense mechanisms** in next-generation recommender systems that rely heavily on large language model retrieval pipelines.
+The above code (Code 2) exemplifies how a single-phase or chained textual manipulation can drastically influence retrieval-augmented recommendations. By limiting edits to a constrained token budget and using clever injection of emotional or neighbor-based text, adversaries can stay under the radar while shifting item exposure in top-$N$ lists.
+
+Meanwhile, **Code 3** provides the foundation for embedding these newly rewritten descriptions, bridging the gap between the data poisoning step and a fully retrained or reindexed RAG pipeline. Overall, this method highlights the pressing need for **robust textual integrity checks** and **defense mechanisms** in next-generation recommender systems that rely heavily on large language model retrieval pipelines.
+
 
