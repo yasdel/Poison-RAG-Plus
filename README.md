@@ -1,4 +1,3 @@
-# Poison-RAG-Plus
 # Step 2: Data Augmentation Attack Against RAG
 
 ### Description of Research
@@ -82,5 +81,4 @@ and compression for efficient storage.]
 The above code (Code 2) exemplifies how a single-phase or chained textual manipulation can drastically influence retrieval-augmented recommendations. By limiting edits to a constrained token budget and using clever injection of emotional or neighbor-based text, adversaries can stay under the radar while shifting item exposure in top-$N$ lists.
 
 Meanwhile, **Code 3** provides the foundation for embedding these newly rewritten descriptions, bridging the gap between the data poisoning step and a fully retrained or reindexed RAG pipeline. Overall, this method highlights the pressing need for **robust textual integrity checks** and **defense mechanisms** in next-generation recommender systems that rely heavily on large language model retrieval pipelines.
-
 
