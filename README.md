@@ -39,7 +39,7 @@ This repository’s second step focuses on a **code-based framework** to demonst
 
 **Filename**: `attack_generation.py`  
 
-This code demonstrates how to **promote** or **demote** items in a retrieval-augmented recommender system by making minimal textual edits. We explore **four attacker strategies**:
+This code demonstrates how to **promote** or **demote** items using LLM-Generated textual attacks in recommender systems. We explore **four attacker strategies**:
 
 1. **Emotional Attack**  
    Inject sentiment-laden words (positive or negative) while respecting a max-change limit.
