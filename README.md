@@ -64,7 +64,8 @@ These strategies are inspired by the accompanying paper, which studies stealthy 
       direction="promote",
       max_change_ratio=0.10
   )
-
+- **Promote** an unpopular movie by borowwing text from neighbors
+    ```python
   borrowed_promote = borrow_text_from_neighbors(
     original_text="An under-the-radar indie flick from 1990s.",
     neighbor_texts=some_popular_descriptions_list,
