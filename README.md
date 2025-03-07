@@ -1,4 +1,5 @@
-# Step 2: Data Augmentation Attack Against RAG
+# Step 2: LLM_Generated Data Augmentation Attack 
+## Against RAG and CF using Side Textual Information
 
 ### Description of Research
 Retrieval-augmented generation (RAG) architectures combine an external knowledge store (e.g., a corpus of item descriptions) with a large language model (LLM) to produce final outputs, such as recommendations. While this approach improves factual grounding, it also introduces a new vulnerability: **textual data poisoning**.
