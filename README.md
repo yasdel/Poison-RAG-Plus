@@ -33,28 +33,46 @@ This repository’s second step focuses on a **code-based framework** to demonst
 ---
 
 ### Code 2
-Below is a more in-depth explanation of the **Data Augmentation Attack** module (item 2). This module orchestrates rewriting item descriptions, evaluating their semantic changes, and measuring the impact on final recommendations.
 
-**Paragraph 1**: In this module, we focus on **textual rewriting techniques** designed to evade naive detection systems while significantly affecting retrieval and ranking. The core idea is to limit token-level edits—e.g., changing only 10% to 30% of words—so that the manipulated descriptions still appear coherent. We incorporate various rewriting strategies, such as:
-  - **Emotional/Sentiment Shaping** (inserting positive or negative terms to promote or demote items),
-  - **Neighbor Borrowing** (borrowing short excerpts from thematically similar or dissimilar items),
-  - **Chained Methods** (combining sentiment shaping with neighbor-based text merges in multiple steps).
 
-**Paragraph 2**: This step also introduces **metrics to assess the stealthiness and severity** of the textual changes. For instance, we track:
-  - **Lexical similarity** via BLEU scores,
-  - **Semantic closeness** using Sentence-BERT embeddings,
-  - **BERTScore F1** for deeper token alignment.
-By comparing these metrics before and after modification, we quantify how “similar” the new text is to the original, while also verifying that the system’s recommendation outputs can indeed be manipulated in favor of (or against) certain items.
+# Textual Data-Poisoning for RAG-based Recommenders
 
-**Paragraph 3**: Once the new descriptions are injected, we re-run the retriever or re-index the knowledge store in a typical RAG pipeline. Because these textual changes often align with relevant or persuasive keywords, the pipeline is fooled into ranking these manipulated items higher (for promotion) or lower (for demotion). By automating this entire process—from selecting which items to target, generating multiple candidate rewrites, and finally picking the “best” poisoning strategy—we demonstrate that RAG-based systems can be systematically attacked with minimal textual edits.
+**Filename**: `attack_generation.py`  
 
-**(Optional)** A fourth paragraph can discuss **defensive techniques** such as verifying text provenance, monitoring unusual changes in descriptions, or employing robust embedding methods that are less sensitive to minor textual additions. Such methods could be integrated alongside standard data-preprocessing pipelines, but the code here primarily focuses on showing how easily these vulnerabilities can be exploited in typical RAG-based recommenders.
+This code demonstrates how to **promote** or **demote** items in a retrieval-augmented recommender system by making minimal textual edits. We explore **four attacker strategies**:
 
-```plaintext
-[Here is where the actual attack code from the provided script would appear, 
-including the rewrite functions, neighbor borrowing, emotional edits, 
-and the logic for measuring semantic differences, etc.]
-```
+1. **Emotional Attack**  
+   Inject sentiment-laden words (positive or negative) while respecting a max-change limit.
+
+2. **Neighbor Attack**  
+   Borrow exact phrases from popular (or unpopular) "neighbor" items to subtly sway embedding similarity.
+
+3. **Chain Attack**  
+   Combine Emotional and Neighbor rewriting in two steps for a stronger effect.
+
+4. **Trigger Attack**  
+   Insert a short verbatim "trigger phrase" into the item description to anchor the embedding in a specific semantic direction.
+
+These strategies are inspired by the accompanying paper, which studies stealthy textual poisoning with minimal edits. **Even a 10% token change** can strongly shift item rankings without harming overall system metrics like Recall or nDCG.
+
+## Usage Examples
+
+- **Promote** an unpopular movie by injecting emotional superlatives:
+  ```python
+  attacked_text = generate_semantic_emotional_edit(
+      original_text="A quiet family drama set in the countryside.",
+      direction="promote",
+      max_change_ratio=0.10
+  )
+
+```python
+  borrowed_promote = borrow_text_from_neighbors(
+    original_text="An under-the-radar indie flick from 1990s.",
+    neighbor_texts=some_popular_descriptions_list,
+    direction="promote",
+    max_change_ratio=0.15
+  )
+
 
 ---
 
