@@ -65,16 +65,14 @@ These strategies are inspired by the accompanying paper, which studies stealthy 
       max_change_ratio=0.10
   )
 
-```python
+  ```python
   borrowed_promote = borrow_text_from_neighbors(
     original_text="An under-the-radar indie flick from 1990s.",
     neighbor_texts=some_popular_descriptions_list,
     direction="promote",
     max_change_ratio=0.15
   )
-
-
----
+  ---
 
 ### Code 3
 **(Embedding Extraction)**
