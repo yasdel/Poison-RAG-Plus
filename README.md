@@ -1,154 +1,124 @@
-# Poison-RAG-Plus: Data Augmentation Attacks & Embedding Extraction
+# Poison-RAG-Plus: Detailed Explanation of the Code and Experimental Procedures
 
-## Overview
-This repository demonstrates a **data poisoning pipeline** against retrieval-augmented recommender systems (RAG) and collaborative filtering (CF) methods that leverage textual metadata. The project is split into three core parts:
+This repository demonstrates **data poisoning attacks** against recommender systems that rely on **Retrieval-Augmented Generation (RAG)** and **Collaborative Filtering (CF)** with side textual metadata. Below is an overview of our code files, the rationale behind each step, and how these scripts together answer the reviewers’ concerns about implementation details, optimization processes, and reproducibility.
 
-1. **Code1**: Data Processing & Preliminary Steps  
-2. **Code2**: Textual Data Augmentation Attacks  
-3. **Code3**: Embedding Extraction & Post-Attack Analysis
+## Table of Contents
 
-Each component helps address different stages of our experiments, from preparing datasets to injecting stealthy text manipulations, to embedding the manipulated data for subsequent recommendation experiments.
-
-Our **primary research goal** is to show how relatively small metadata rewrites (e.g., 10% token edits) can disproportionately affect item visibility during recommendation—either **promoting** long-tail items or **demoting** popular ones.
-
----
-
-## Code1: Data Processing & Preliminary Steps
-This script manages **initial data preparation**, covering tasks such as:
-1. **Loading & Cleaning**: Reads the raw item metadata (e.g., movie or music descriptions) and cleans it (removing HTML tags, trimming whitespace, etc.).
-2. **Long-Tail & Short-Head Division**: Implements the logic to separate items into “long-tail” (unpopular) vs. “short-head” (popular) categories. By default, we use thresholds based on interactions or ratings (e.g., top 20% item frequency = short-head, remainder = long-tail).  
-3. **User Profile Setup**: Optionally prepares user preference vectors (e.g., from rating logs) or user descriptors (e.g., from text prompts). This helps later experiments where we test recommendation performance after poisoning.
-
-> **Tip**: If you want to replicate the *exact* long-tail/short-head split for your own dataset, see the comments in the code where we define the popularity threshold. Adjusting that cutoff will change how many items end up in either category.
-
-This code **does not** directly perform any LLM-based rewriting; it sets up the environment so that Code2 can inject malicious metadata.
+1. [Scope of Experiments](#scope-of-experiments)  
+2. [Code Overview](#code-overview)  
+   1. [Code1_Data_Augmentation_Attacks.ipynb](#code1_data_augmentation_attacksipynb)  
+   2. [Code2_Embedding_extraction.ipynb](#code2_embedding_extractionipynb)  
+   3. [Code3_Original_Poison_RAG_plus_main.ipynb](#code3_original_poison_rag_plus_mainipynb)  
+3. [Frequently Asked Questions (FAQ)](#faq)  
+4. [Future Improvements and Reproducibility](#future-improvements)
 
 ---
 
-## Code2: Textual Data Augmentation Attacks
-**Core functionality** for injecting stealthy textual poisoning into item descriptions. The attacks are designed to:
-- Keep semantic similarity relatively high (so the text remains coherent).
-- Respect a token-edit budget (often 10-30% changes).
-- Allow either **promotion** (adding positive phrases or borrowed text from highly-rated neighbors) or **demotion** (inserting negative or distracting phrases from low-rated neighbors).
+## 1. Scope of Experiments
+Our experiments cover a large range of scenarios, reflecting both **promotion** (boosting long-tail items) and **demotion** (suppressing popular items), across multiple LLM-based embedding methods. Concretely:
 
-### Attack Methods
-1. **Emotional Attack**  
-   - Injects emotionally charged words (e.g., “enchanting,” “exhilarating”) to boost item perception, or negative terms (“lackluster,” “forced”) to reduce attractiveness.
-   - Example:  
-     ```python
-     promoted_text = generate_semantic_emotional_edit(
-       original_text="A charming romantic comedy set in New York...",
-       direction="promote",
-       max_change_ratio=0.3
-     )
-     ```
+- **Attack Types**: 4 (Emotional, Neighbor, Chain, Trigger)  
+- **Promote/Demote Settings**: 2  
+- **LLM Types**: 3 (e.g., OpenAI, Sentence Transformers, LLaMA)  
+- **User Profiles**: 2 (manual, LLM-generated)  
+- **Number of Tested Users**: 120  
 
-2. **Neighbor (Borrowing) Attack**  
-   - Scans a set of “neighbor” items (especially from the opposite popularity tier) to find phrases or keywords. Inserts these phrases in the target item’s description to shift embeddings.
-   - Example:  
-     ```python
-     borrowed_text = borrow_text_from_neighbors(
-       original_text="A charming romantic comedy set in New York...",
-       neighbor_texts=neighbor_descriptions,
-       direction="promote",
-       max_change_ratio=0.3,
-       max_neighbors=5
-     )
-     ```
-
-3. **Chain Attack**  
-   - Applies *Emotional* edits first, then *Neighbor* borrowing. This often amplifies the embedding shift, but with higher risk of detection if the changes become too noticeable.
-   - Example:  
-     ```python
-     chained_text = chain_emotional_then_neighbor(
-       original_text="...",
-       neighbor_texts=neighbor_descriptions,
-       direction="demote",
-       max_change_ratio=0.2,
-       max_neighbors=3
-     )
-     ```
-
-4. **Trigger Attack**  
-   - Inserts a multi-sentence trigger phrase carefully designed to cause a large embedding change with minimal token edits. Particularly potent if the trigger references high-sentiment or award-winning items.
-   - Example:
-     ```python
-     trigger_text = modify_text_with_neighbors(
-       original_text="...",
-       neighbor_texts=neighbor_descriptions,
-       direction="promote",
-       max_change_ratio=0.3
-     )
-     ```
-
-### Generating Attack Outputs & Reproducibility
-- **Automated vs. Manual**: You can run `python Code2_Embedding_extraction.ipynb` or equivalent to automatically produce attacked descriptions for all items in the dataset. 
-- **Optimization for Formula 1**: We balance the *edit distance* constraint (e.g., 10% tokens) and the *semantic similarity* (ensuring re-written text remains coherent). The code includes comments on how we check similarity scores via sentence embeddings (SBERT).
-- **Examples**: Detailed examples of each method (emotional, neighbor, chain, trigger) are provided in the notebook to help new users see how final text changes are produced.
-
-For a typical user-based experiment, we might run:
-> 4 (attack strategies) × 2 (promote/demote) × 3 (LLM types) × 2 (user profile styles) × 120 (users) = ~6000 total evaluations.
-
-Given these large numbers, we selectively showcase a few sample transformations in the paper and point to the complete logs in `logs/` for further transparency.
+Hence, we have roughly **4 × 2 × 3 × 2 × 120 ≈ 6000** distinct rewriting experiments and evaluations. Each scenario can produce thousands of textual variants, making it impractical to store every single output in the paper. This is why our scripts dynamically generate (and log) the textual attacks, store them in CSV files, and then measure ranking impacts in separate steps.
 
 ---
 
-## Code3: Embedding Extraction & Post-Attack Analysis
-**Goal**: Convert the newly “poisoned” item descriptions into vector embeddings for subsequent retrieval or re-ranking steps.
+## 2. Code Overview
 
-### Main Features
-1. **Multiple Embedding Models**  
-   - **OpenAI** (e.g., `text-embedding-ada-002`) via remote API calls  
-   - **Sentence Transformers** (local)  
-   - **LLaMA** (local, if configured)  
-   You can switch models by changing the `--embed_model` flag in your command or code cell.
+### 2.1 Code1_Data_Augmentation_Attacks.ipynb
+This notebook addresses **textual poisoning**. It:
+1. **Loads or Downloads** the chosen dataset (MovieLens or Last.fm).
+2. **Identifies** which items are **long-tail** (for promotion) vs. **short-head** (for demotion).
+3. **Implements the Four Attack Methods**:
+   - **Emotional** (inject positive or negative emotional words).
+   - **Neighbor Borrowing** (insert verbatim phrases from neighboring items’ descriptions).
+   - **Chain** (apply Emotional first, then Neighbor).
+   - **Trigger** (a multi-sentence snippet that significantly shifts embeddings).
+4. **Token-Edit Constraint**: Each attack carefully tracks how many words/tokens can be modified (e.g., 10% or 30%).
+5. **Parallel or Serial Execution**: The user can switch `run_parallel_version = True` to speed up LLM calls for large item catalogs.
+6. **Semantic Similarity Checks**: We measure changes with SBERT or BERTScore to ensure the final text remains semantically close.
 
-2. **Chunking & Parallelization**  
-   - For large catalogs, the code processes items in batches to avoid timeouts or exceeding rate limits.
-   - Embeddings are stored in compressed numpy arrays for efficient loading later.
+**Key Sections**:
+- **`_augment_one_item()`**: Central function that takes one item’s original text, finds neighbors, applies the chosen ratio of changes, and logs the new text plus semantic differences.
+- **`apply_phase1_promotions_demotions()`**: Samples a fraction (e.g., 10%) of target items and runs the four attacker strategies at multiple edit ratios (10%, 40%, 60%, 90%). Results go into new columns (e.g., `phase1_10p_promote_emotional`).
+- **Final**: The notebook saves a CSV file (gzipped) with augmented text columns and logs to highlight how each item’s textual description changed.
 
-3. **Integration with RAG**  
-   - After embedding, you can feed these vectors into your retrieval engine (e.g., FAISS, Annoy, or Elasticsearch) for approximate nearest-neighbor searches.  
-   - The updated embeddings reflect the attacker’s textual changes. Thus, when the recommendation engine queries them, rank shifts can occur.
+**Addressing Reviewer Concerns**:
+- **Division Strategy**: This file includes `assign_popularity_class()` to label items as long-tail vs. short-head, typically top 20% as short-head and bottom 50% as long-tail.  
+- **Attack Output Generation**: The user can see each step’s prompts and final text in the `_augment_one_item()` function (we limit the total text to show just representative examples).  
+- **Optimization for Formula 1**: We are not using a gradient-based approach; rather, the script ensures each rewrite respects an edit-distance limit (`max_change_ratio`) and a semantic-similarity threshold (SBERT). This ensures that 1) we don’t exceed the token-edit budget, and 2) the text remains coherent.  
 
-4. **Detailed Examples**  
-   - Sample usage:
-     ```python
-     # Pseudocode example
-     from embeddings_extraction import generate_embeddings
+### 2.2 Code2_Embedding_extraction.ipynb
+Focuses on converting the newly **poisoned item descriptions** into vector embeddings. This is crucial because a RAG or CF model relies heavily on textual embeddings for retrieval. We support:
 
-     # Suppose 'poisoned_items.csv' has item IDs and attacked descriptions
-     embeddings = generate_embeddings(
-       input_file="poisoned_items.csv",
-       model_type="openai"
-     )
-     # This returns an array of vectors, each corresponding to an item’s new text
-     ```
-   - Each approach (OpenAI, ST, LLaMA) has its own configuration block. See inline documentation in the `.ipynb` for how to run them.
+1. **OpenAI** (Ada-002)  
+2. **Sentence Transformers** (MiniLM, etc.)  
+3. **LLaMA** (local embeddings)
+
+**Core Steps**:
+- **Load the augmented items** from the CSV produced by Code1 (includes columns like `phase1_10p_promote_emotional`).
+- **For each column** representing an attack scenario, generate embeddings in parallel (to handle large catalogs).
+- **Chunking and Output**: Because thousands of items can produce large embedding files, we chunk them (e.g., ~25MB each) and store them as multiple `.csv.gz` parts.
+
+**Addressing Reviewer Concerns**:
+- **Cost & Feasibility**: We show how we batch requests (OpenAI or local) to handle rate limits. Attack feasibility remains high as we only change ~10% of each text.  
+- **Reproducibility**: Users can replicate the exact procedure by specifying the same `embedding_method` (OpenAI, ST, or LLaMA), the same chunk size, and ensuring their `.csv.gz` outputs match our logs.  
+- **Long vs. Short-Head**: Not specifically coded here, but we do preserve the `pop_class` column from Code1 so you can differentiate items if needed.
+
+### 2.3 Code3_Original_Poison_RAG_plus_main.ipynb
+Demonstrates **an end-to-end pipeline** that:
+1. **Builds** a small RAG-based recommendation flow:
+   - User embedding from rating logs (temporal or average).
+   - A kNN or nearest-neighbor retrieval using the item embeddings from Code2.
+   - An optional LLM-based re-ranking or final generation step.
+2. **Trains** or indexes the system on either original or attacked metadata, showing how item ranking changes.
+3. **Provides** an evaluation framework (Recall@K, NDCG@K) and also logs the position of attacked items in top-K. This helps see how the promotion/demotion worked in practice.
+
+**Key Sections**:
+- **Retrieval**: `build_item_matrix()`, `retrieve_top_N_items()`
+- **User Embedding**: We show `compute_user_embedding()`, letting you pick “temporal” or “average.”
+- **Evaluation**: `compute_recall_at_k()`, `compute_ndcg_at_k()`, plus a final loop over many users to gather metrics.
+- **LLM-based Summaries**: We illustrate how you might prompt an LLM to produce a final recommendation JSON. This part is optional for a basic CF or item-based approach, but crucial for RAG.
+
+**Addressing Reviewer Concerns**:
+- **Table 1 Correlation**: The code merges user-based retrieval results with final LLM re-ranking, highlighting that different models (OpenAI vs. ST) can yield unexpected rank shifts in demotion scenarios.
+- **Attack Feasibility**: We do not forcibly check for “consistency” across the entire dataset, so small changes remain undetected in practice.
+- **Multiple Datasets**: We primarily show MovieLens. However, the code includes placeholders for LastFM. This was a minor doc oversight; the code for LastFM is indeed in Code1 (functions like `load_data_lastfm()`), and the approach is the same.  
 
 ---
 
-## Frequently Asked Questions (FAQ)
-**Q1: How do I replicate the long-tail vs. short-head split?**  
-A1: In **Code1**, modify the `popularity_threshold` variable (or function). By default, it sets a certain percentile of interaction frequency to label items as short-head, with the rest considered long-tail.
+## 3. Frequently Asked Questions (FAQ)
 
-**Q2: Where can I see a complete example of generated attacks?**  
-A2: In **Code2**, check `examples/` or the sample Jupyter cells. They illustrate how we feed original text, neighbors’ text, and a direction (promote/demote) to get the final attacked description.
+1. **Q**: *How do I replicate the long-tail vs. short-head split exactly?*  
+   **A**: In **Code1**, look for functions like `assign_popularity_class()` or `assign_popularity_class_based_on_rating_percentage()`. You can adjust the quantiles or thresholds for top 20% vs. bottom 50%.
 
-**Q3: Does the code show the optimization steps for Formula 1 explicitly?**  
-A3: Yes. **Code2** includes commentary near the rewriting functions explaining how we balance token-edit constraints (`max_change_ratio`) with semantic similarity checks. We also log the final success or failure (e.g., if more tokens were changed than allowed).
+2. **Q**: *Where are the outputs for the three example attacks in the paper?*  
+   **A**: In **Code1**, we show sample lines at the bottom (e.g., `generate_semantic_emotional_edit()`) with print statements demonstrating the final text. Additionally, after generating the entire dataset, the script saves them in a `.csv.gz` so you can see *all* items’ new text in columns like `phase1_10p_promote_emotional`.
 
-**Q4: How do I test the system on datasets other than MovieLens?**  
-A4: Both **Code1** and **Code2** can ingest different CSV or JSON item metadata. For LastFM, we provide an additional script (`lastfm_data_preprocessing.py`) that aligns audio track metadata with the same pipeline. Future versions will include more instructions for large-scale runs.
+3. **Q**: *How exactly do you optimize Formula 1?*  
+   **A**: We do a *constraint-based rewriting* in which we set a `max_change_ratio` and measure approximate semantic similarity. We rely on LLM prompts (with explicit instructions like “Do NOT exceed X words changed”). Thus, we do not use a gradient-based approach but a prompt-driven approach that meets the stealth and token budget constraints.
 
----
+4. **Q**: *Why are results in the demotion scenario sometimes reversed?*  
+   **A**: As mentioned, the retrieval stage can re-introduce certain items if the embeddings remain partially similar or if the LLM re-ranking places unexpected weight on certain cues. We plan more refined neighbor selection to avoid inadvertently boosting items.
 
-## Future Work
-- **Extended Dataset Evaluations**: We plan to add more benchmarks (e.g., BookCrossing, real-time product catalogs) to show generalizability.
-- **Advanced Defense Mechanisms**: Upcoming releases will include code to test anomaly detectors on textual metadata.
-- **User-Friendly Interfaces**: We intend to create streamlined CLI commands or Docker containers so anyone can run these experiments locally with minimal setup.
+5. **Q**: *How can I check if the attack was detected?*  
+   **A**: The code does not enforce any detection method. However, you can run “consistency checks” (like text duplication or unusual phrases) by scanning the final `.csv.gz` for certain patterns. We plan to add a demonstration of that in future releases.
 
 ---
 
-## Conclusion
-**Poison-RAG-Plus** demonstrates how subtle textual edits can cause outsized shifts in retrieval-based recommendations. By combining emotional phrasing, neighbor borrowing, and multi-sentence triggers, attackers can effectively promote or demote items without massive rewrites. This repository provides an end-to-end workflow—from data preparation, to text poisoning, to embedding extraction—allowing researchers to replicate, evaluate, and hopefully defend against such vulnerabilities in LLM-driven recommender systems.
+## 4. Future Improvements
+
+- **Extended Datasets**: We will add BookCrossing or other real-world sets to demonstrate generality.  
+- **Defense Mechanisms**: Next, we’ll show how certain textual analysis or anomaly detectors can flag over-edited or repetitive tokens.  
+- **Enhanced Optimization**: We may incorporate a partial gradient step (fine-tuning an LLM) that strictly enforces the token distance.  
+
+**All** these notebooks can be run in Google Colab or a local Jupyter environment, ensuring full **reproducibility** and **transparency** for the textual data-poisoning pipeline.
+
+---
+
+**Thank you for your interest in Poison-RAG-Plus!**  
+Feel free to open issues or pull requests for any clarifications or improvements.
